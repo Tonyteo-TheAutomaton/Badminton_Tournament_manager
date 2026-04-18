@@ -20,11 +20,14 @@
 <!-- Data + primitives first, then features -->
 <script type="text/babel" src="data.jsx"></script>
 <script type="text/babel" src="icons.jsx"></script>
+<script type="text/babel" src="auth.jsx"></script>
 <script type="text/babel" src="shell.jsx"></script>
 <script type="text/babel" src="btc_dashboard.jsx"></script>
 <script type="text/babel" src="btc_views.jsx"></script>
 <script type="text/babel" src="referee.jsx"></script>
 <script type="text/babel" src="public_views.jsx"></script>
+<script type="text/babel" src="login.jsx"></script>
+<script type="text/babel" src="admin.jsx"></script>
 
 <script type="text/babel" data-presets="react">
 const { useState: useS_app, useEffect: useE_app } = React;
@@ -38,7 +41,7 @@ const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
 }/*EDITMODE-END*/;
 
 function App() {
-  const [role, setRole] = useRole();
+  const { session, login, logout, register } = useAuth();
   const [lang, setLang] = useLang();
   const [view, setView] = useS_app(() => {
     try { return localStorage.getItem('bad.view') || 'dashboard'; } catch { return 'dashboard'; }
@@ -79,9 +82,19 @@ function App() {
     r.style.setProperty('--row-pad', tweaks.density === 'compact' ? '7px 12px' : '10px 12px');
   }, [tweaks.accentMode, tweaks.density]);
 
-  /* BTC desktop surface */
+  /* Not logged in — show auth screen */
+  if (!session) {
+    return <AuthScreen onLogin={login} onRegister={register}/>;
+  }
+
+  const role = session.role;
+  const topBarProps = { session, onLogout: logout, lang, setLang };
+
+  /* Route by role */
   let surface;
-  if (role === 'btc') {
+  if (role === 'admin') {
+    surface = <AdminView session={session} onLogout={logout} lang={lang} setLang={setLang} sidebarOpen={tweaks.sidebarOpen}/>;
+  } else if (role === 'btc') {
     const views = {
       dashboard: <DashboardView/>,
       schedule:  <ScheduleView/>,
@@ -97,7 +110,7 @@ function App() {
     };
     surface = (
       <div style={{ display:'grid', gridTemplateAreas:'"top top" "side main"', gridTemplateRows:'56px 1fr', gridTemplateColumns: tweaks.sidebarOpen ? '232px 1fr' : '64px 1fr', height:'100vh' }}>
-        <TopBar role={role} setRole={setRole} lang={lang} setLang={setLang}/>
+        <TopBar {...topBarProps}/>
         <Sidebar view={view} setView={setView}/>
         <main style={{ gridArea:'main', overflowY:'auto', background:'var(--paper-2)' }} data-screen-label={`BTC · ${view}`}>
           {views[view] || <DashboardView/>}
@@ -107,21 +120,22 @@ function App() {
   } else if (role === 'referee') {
     surface = (
       <div style={{ display:'grid', gridTemplateAreas:'"top" "main"', gridTemplateRows:'56px 1fr', height:'100vh' }}>
-        <TopBar role={role} setRole={setRole} lang={lang} setLang={setLang}/>
+        <TopBar {...topBarProps}/>
         <main style={{ gridArea:'main', overflowY:'auto' }} data-screen-label="Referee mobile"><RefereeView/></main>
       </div>
     );
   } else if (role === 'athlete') {
     surface = (
       <div style={{ display:'grid', gridTemplateAreas:'"top" "main"', gridTemplateRows:'56px 1fr', height:'100vh' }}>
-        <TopBar role={role} setRole={setRole} lang={lang} setLang={setLang}/>
+        <TopBar {...topBarProps}/>
         <main style={{ gridArea:'main', overflow:'hidden' }} data-screen-label="Athlete portal"><AthleteView/></main>
       </div>
     );
   } else {
+    /* Spectator / unauthenticated — public view */
     surface = (
       <div style={{ display:'grid', gridTemplateAreas:'"top" "main"', gridTemplateRows:'56px 1fr', height:'100vh' }}>
-        <TopBar role={role} setRole={setRole} lang={lang} setLang={setLang}/>
+        <TopBar {...topBarProps}/>
         <main style={{ gridArea:'main', overflow:'clip' }} data-screen-label="Public site"><SpectatorView/></main>
       </div>
     );

@@ -225,10 +225,103 @@ function BracketView() {
   );
 }
 
+/* ------ ATHLETES — pending auth approval (BTC approves VĐV) ------ */
+function PendingAthleteApprovals() {
+  const [users, setUsers] = useS_btc(() => getUsers().filter(u => u.status === 'pending' && u.requestedRole === 'athlete'));
+  const [confirm, setConfirm] = useS_btc(null);
+  const [timer, setTimer] = useS_btc(null);
+
+  const refresh = () => setUsers(getUsers().filter(u => u.status === 'pending' && u.requestedRole === 'athlete'));
+
+  const prime = (userId, action) => {
+    if (timer) clearTimeout(timer);
+    setConfirm({ userId, action });
+    const t = setTimeout(() => setConfirm(null), 3000);
+    setTimer(t);
+  };
+
+  const execute = () => {
+    if (!confirm) return;
+    if (confirm.action === 'approve') authApprove(confirm.userId, 'athlete');
+    else authReject(confirm.userId);
+    setConfirm(null);
+    refresh();
+  };
+
+  if (users.length === 0) return (
+    <div style={{ padding:'32px 0', textAlign:'center', color:'var(--ink-3)', fontSize:13.5 }}>
+      Không có VĐV nào chờ phê duyệt.
+    </div>
+  );
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:10, marginTop:4 }}>
+      {confirm && (
+        <div style={{
+          padding:'10px 14px', borderRadius:6,
+          background: confirm.action === 'approve' ? 'oklch(0.93 0.06 160)' : 'oklch(0.96 0.04 25)',
+          display:'flex', alignItems:'center', justifyContent:'space-between',
+        }}>
+          <span style={{ fontSize:13 }}>
+            {confirm.action === 'approve' ? 'Xác nhận duyệt VĐV?' : 'Xác nhận từ chối?'} Nhấn lại để thực hiện.
+          </span>
+          <div style={{ display:'flex', gap:6 }}>
+            <button onClick={execute} style={{
+              padding:'5px 12px', borderRadius:5, border:'none', cursor:'pointer',
+              background: confirm.action === 'approve' ? 'oklch(0.42 0.14 160)' : 'var(--accent)',
+              color:'white', fontSize:12, fontWeight:600,
+            }}>{confirm.action === 'approve' ? 'Duyệt' : 'Từ chối'}</button>
+            <button onClick={() => setConfirm(null)} style={{ padding:'5px 10px', borderRadius:5, border:'1px solid var(--line)', background:'transparent', fontSize:12, cursor:'pointer' }}>Huỷ</button>
+          </div>
+        </div>
+      )}
+      {users.map(u => {
+        const isActive = confirm?.userId === u.id;
+        return (
+          <div key={u.id} style={{
+            padding:'12px 16px', borderRadius:7,
+            border:'1px solid var(--line)', background:'var(--paper)',
+            display:'flex', alignItems:'center', gap:14,
+            boxShadow: isActive ? '0 0 0 2px var(--ink)' : 'none',
+          }}>
+            <div style={{
+              width:32, height:32, borderRadius:5, background:'oklch(0.88 0.03 250)',
+              display:'flex', alignItems:'center', justifyContent:'center',
+              fontFamily:'var(--font-display)', fontWeight:700, fontSize:13, color:'var(--ink)',
+            }}>{u.name.charAt(0)}</div>
+            <div style={{ flex:1 }}>
+              <div style={{ fontWeight:600, fontSize:13.5 }}>{u.name}</div>
+              <div style={{ fontSize:11.5, color:'var(--ink-2)' }}>{u.email}{u.phone ? ` · ${u.phone}` : ''}</div>
+            </div>
+            <span style={{ fontSize:11, color:'var(--ink-3)', fontFamily:'var(--font-mono)' }}>{u.createdAt}</span>
+            <div style={{ display:'flex', gap:6 }}>
+              <button onClick={() => prime(u.id, 'approve')} style={{
+                padding:'6px 12px', borderRadius:5, border:'none', cursor:'pointer',
+                background: isActive && confirm.action==='approve' ? 'oklch(0.42 0.14 160)' : 'oklch(0.93 0.06 160)',
+                color: isActive && confirm.action==='approve' ? 'white' : 'oklch(0.42 0.14 160)',
+                fontSize:12, fontWeight:600,
+              }}>Duyệt VĐV</button>
+              <button onClick={() => prime(u.id, 'reject')} style={{
+                padding:'6px 12px', borderRadius:5, cursor:'pointer',
+                border:'1px solid var(--line)',
+                background: isActive && confirm.action==='reject' ? 'var(--accent)' : 'transparent',
+                color: isActive && confirm.action==='reject' ? 'white' : 'var(--ink-2)',
+                fontSize:12,
+              }}>Từ chối</button>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 /* ------ ATHLETES ------ */
 function AthletesView() {
+  const [tab, setTab] = useS_btc('roster'); // 'roster' | 'pending-auth'
   const [filter, setFilter] = useS_btc('all');
   const [sel, setSel] = useS_btc(null);
+  const pendingAuthCount = getUsers().filter(u => u.status === 'pending' && u.requestedRole === 'athlete').length;
   const filtered = ATHLETES.filter(a => filter === 'all' ? true : a.status === filter);
   return (
     <div style={{ padding: 18, display:'grid', gridTemplateColumns: sel ? '1fr 360px' : '1fr', gap: 16, height:'100%' }}>
@@ -248,6 +341,23 @@ function AthletesView() {
           <button style={btnPrimary}><Icon name="dl" size={13}/> Xuất danh sách</button>
         </div>
 
+        {/* Top-level tab: Roster vs Pending auth */}
+        <div style={{ display:'flex', gap:0, borderBottom:'1px solid var(--line)' }}>
+          {[
+            ['roster', 'Danh sách VĐV'],
+            ['pending-auth', `Chờ duyệt tài khoản${pendingAuthCount ? ` (${pendingAuthCount})` : ''}`],
+          ].map(([id, label]) => (
+            <button key={id} onClick={() => setTab(id)} style={{
+              padding:'7px 16px', border:'none', background:'transparent', cursor:'pointer',
+              fontSize:13, fontWeight: tab===id ? 600 : 400,
+              color: tab===id ? 'var(--ink)' : 'var(--ink-2)',
+              borderBottom: tab===id ? '2px solid var(--ink)' : '2px solid transparent',
+              marginBottom:-1,
+            }}>{label}</button>
+          ))}
+        </div>
+
+        {tab === 'pending-auth' ? <PendingAthleteApprovals/> : (<>
         <div style={{ display:'flex', gap: 6 }}>
           {[
             ['all','Tất cả', ATHLETES.length],
@@ -299,6 +409,7 @@ function AthletesView() {
             </tbody>
           </table>
         </div>
+        </>)}
       </div>
 
       {sel && <AthleteDetail a={sel} onClose={() => setSel(null)}/>}

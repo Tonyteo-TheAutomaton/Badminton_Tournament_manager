@@ -36,7 +36,13 @@ const ShuttleMark = ({ size = 22 }) => (
   </svg>
 );
 
-function TopBar({ role, setRole, lang, setLang }) {
+const ROLE_LABELS = { admin:'Admin', btc:'Ban tổ chức', referee:'Trọng tài', athlete:'VĐV / HLV' };
+
+function TopBar({ session, onLogout, lang, setLang }) {
+  const initials = session?.name
+    ? session.name.split(' ').map(w => w[0]).slice(-2).join('').toUpperCase()
+    : '?';
+
   return (
     <header style={{
       gridArea: 'top',
@@ -60,22 +66,6 @@ function TopBar({ role, setRole, lang, setLang }) {
 
       <div style={{ width: 1, height: 28, background: 'oklch(0.32 0.01 250)', margin: '0 4px' }}/>
 
-      <div style={{ display:'flex', gap: 4, padding: 3, background: 'oklch(0.24 0.01 250)', borderRadius: 8 }}>
-        {ROLES.map(r => (
-          <button key={r.id} onClick={() => setRole(r.id)}
-            style={{
-              border: 0, padding: '6px 12px', borderRadius: 5,
-              background: role === r.id ? 'var(--accent)' : 'transparent',
-              color: role === r.id ? 'white' : 'oklch(0.8 0.01 250)',
-              fontSize: 12.5, fontWeight: 500, letterSpacing: 0.01,
-              display:'flex', flexDirection:'column', alignItems:'flex-start', lineHeight: 1.1, gap: 2,
-            }}>
-            <span>{r.label}</span>
-            <span style={{ fontSize: 9.5, letterSpacing: 0.1, textTransform:'uppercase', opacity: 0.75 }}>{r.sub}</span>
-          </button>
-        ))}
-      </div>
-
       <div style={{ flex: 1 }}/>
 
       <div className="mono" style={{ fontSize: 11, color:'oklch(0.65 0.01 250)' }}>
@@ -94,17 +84,26 @@ function TopBar({ role, setRole, lang, setLang }) {
         <span style={{ display:'inline-block', width: 6, height: 6, background: 'var(--accent)', borderRadius: 99 }}/>
       </button>
 
-      <div style={{ display:'flex', alignItems:'center', gap: 8 }}>
-        <div style={{ width: 28, height: 28, borderRadius: 6, background:'oklch(0.58 0.08 70)',
-                      color:'var(--ink)', fontWeight: 700, fontSize: 12,
-                      display:'flex', alignItems:'center', justifyContent:'center' }}>
-          PL
+      {session && (
+        <div style={{ display:'flex', alignItems:'center', gap: 8 }}>
+          <div style={{ width: 28, height: 28, borderRadius: 6, background:'oklch(0.58 0.08 70)',
+                        color:'var(--ink)', fontWeight: 700, fontSize: 12,
+                        display:'flex', alignItems:'center', justifyContent:'center' }}>
+            {initials}
+          </div>
+          <div style={{ lineHeight: 1.1, fontSize: 12 }}>
+            <div>{session.name}</div>
+            <div style={{ color:'oklch(0.65 0.01 250)', fontSize: 10.5 }}>
+              {ROLE_LABELS[session.role] || session.role}
+            </div>
+          </div>
+          <button onClick={onLogout} title="Đăng xuất"
+            style={{ border:'1px solid oklch(0.32 0.01 250)', background:'transparent', color:'oklch(0.7 0.01 250)',
+                     padding:'5px 8px', borderRadius: 6, display:'flex', alignItems:'center', cursor:'pointer', marginLeft:4 }}>
+            <Icon name="log-out" size={14}/>
+          </button>
         </div>
-        <div style={{ lineHeight: 1.1, fontSize: 12 }}>
-          <div>Phạm Lâm</div>
-          <div style={{ color:'oklch(0.65 0.01 250)', fontSize: 10.5 }}>Tournament Director</div>
-        </div>
-      </div>
+      )}
     </header>
   );
 }
